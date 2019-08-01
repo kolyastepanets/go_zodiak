@@ -12,7 +12,7 @@ import (
   "os"
 )
 
-var zodiakKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+var zodiacKeyboard = tgbotapi.NewInlineKeyboardMarkup(
   tgbotapi.NewInlineKeyboardRow(
     tgbotapi.NewInlineKeyboardButtonData("Овен", "Aries"),
     tgbotapi.NewInlineKeyboardButtonData("Телец", "Taurus"),
@@ -35,7 +35,7 @@ var zodiakKeyboard = tgbotapi.NewInlineKeyboardMarkup(
   ),
 )
 
-type ZodiakSigns struct {
+type ZodiacSigns struct {
   Aquarius []string `json:"aquarius"`
   Pisces []string `json:"pisces"`
   Aries []string `json:"aries"`
@@ -50,7 +50,7 @@ type ZodiakSigns struct {
   Capricorn []string `json:"capricorn"`
 }
 
-type RussianZodiaks struct {
+type RussianZodiacs struct {
   Aquarius string `json:"aquarius"`
   Pisces string `json:"pisces"`
   Aries string `json:"aries"`
@@ -73,51 +73,51 @@ func init() {
   }
 }
 
-func FindSentenceForZodiak(callbackData string) string {
-  zodiakSigns, err := ioutil.ReadFile("zodiak_signs.json")
+func FindSentenceForZodiac(callbackData string) string {
+  zodiacSigns, err := ioutil.ReadFile("zodiac_signs.json")
   if err != nil {
     fmt.Print(err)
   }
 
-  var ZodiakSignsObj ZodiakSigns
+  var ZodiacSignsObj ZodiacSigns
 
-  err = json.Unmarshal([]byte(zodiakSigns), &ZodiakSignsObj)
+  err = json.Unmarshal([]byte(zodiacSigns), &ZodiacSignsObj)
   if err != nil {
     fmt.Println("error:", err)
   }
 
-  reflectZodiakSigns := reflect.ValueOf(ZodiakSignsObj)
-  currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callbackData)
+  reflectZodiacSigns := reflect.ValueOf(ZodiacSignsObj)
+  currentZodiakSign := reflect.Indirect(reflectZodiacSigns).FieldByName(callbackData)
 
   var sentence = currentZodiakSign.Index(rand.Intn((currentZodiakSign.Len() - 1) - 0)).Interface().(string)
   return sentence
 }
 
 func FindRussianNameForZodiak(callbackData string) string {
-  russianZodiaks, err := ioutil.ReadFile("russian_zodiak.json")
+  russianZodiacs, err := ioutil.ReadFile("russian_zodiac.json")
   if err != nil {
     fmt.Print(err)
   }
 
-  var RussianZodiaksObj RussianZodiaks
+  var RussianZodiacsObj RussianZodiacs
 
-  err = json.Unmarshal([]byte(russianZodiaks), &RussianZodiaksObj)
+  err = json.Unmarshal([]byte(russianZodiacs), &RussianZodiacsObj)
   if err != nil {
     fmt.Println("error:", err)
   }
 
-  reflectRussianZodiakSigns := reflect.ValueOf(RussianZodiaksObj)
-  currentRussianZodiakSign := reflect.Indirect(reflectRussianZodiakSigns).FieldByName(callbackData)
+  reflectRussianZodiacSigns := reflect.ValueOf(RussianZodiacsObj)
+  currentRussianZodiacSign := reflect.Indirect(reflectRussianZodiacSigns).FieldByName(callbackData)
 
-  return currentRussianZodiakSign.Interface().(string)
+  return currentRussianZodiacSign.Interface().(string)
 }
 
 func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
-  var sentence = FindRussianNameForZodiak(callback.Data) + ": " + FindSentenceForZodiak(callback.Data)
+  var sentence = FindRussianNameForZodiak(callback.Data) + ": " + FindSentenceForZodiac(callback.Data)
 
   msg := tgbotapi.NewMessage(callback.Message.Chat.ID, callback.Message.Text)
   msg.Text = sentence
-  msg.ReplyMarkup = zodiakKeyboard
+  msg.ReplyMarkup = zodiacKeyboard
   bot.Send(msg)
 }
 
@@ -150,7 +150,7 @@ func main() {
       switch update.Message.Command() {
       case "choose":
         msg.Text = "Выбери знак зодиака"
-        msg.ReplyMarkup = zodiakKeyboard
+        msg.ReplyMarkup = zodiacKeyboard
       case "help":
         msg.Text = "кликни /start"
       case "start":
