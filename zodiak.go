@@ -47,7 +47,8 @@ type ZodiakSigns struct {
   Capricorn []string `json:"capricorn"`
 }
 
-func FindSentence(callbackData string) string {
+func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
+
   data, err := ioutil.ReadFile("zodiak_signs.json")
   if err != nil {
     fmt.Print(err)
@@ -61,15 +62,12 @@ func FindSentence(callbackData string) string {
   }
 
   reflectZodiakSigns := reflect.ValueOf(obj)
-  currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callbackData)
-  var sentence = callbackData + ": " + currentZodiakSign.Index(0).Interface().(string)
+  currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callback.Data)
 
-  return sentence
-}
+  var sentence = callback.Data + ": " + currentZodiakSign.Index(0).Interface().(string)
 
-func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
   msg := tgbotapi.NewMessage(callback.Message.Chat.ID, callback.Message.Text)
-  msg.Text = FindSentence(callback.Data)
+  msg.Text = sentence
   msg.ReplyMarkup = zodiakKeyboard
   bot.Send(msg)
 }
