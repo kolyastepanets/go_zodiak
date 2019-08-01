@@ -8,6 +8,8 @@ import (
   "encoding/json"
   "reflect"
   "math/rand"
+  "github.com/joho/godotenv"
+  "os"
 )
 
 var zodiakKeyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -63,6 +65,14 @@ type RussianZodiaks struct {
   Capricorn string `json:"capricorn"`
 }
 
+// init is invoked before main()
+func init() {
+  // loads values from .env into the system
+  if err := godotenv.Load(); err != nil {
+    log.Print("No .env file found")
+  }
+}
+
 func FindSentenceForZodiak(callbackData string) string {
   zodiakSigns, err := ioutil.ReadFile("zodiak_signs.json")
   if err != nil {
@@ -112,7 +122,13 @@ func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
 }
 
 func main() {
-  bot, err := tgbotapi.NewBotAPI("610859316:AAHO5IY_npP8Bszm_1oQW_vPf7myqu30vYw")
+  telegramBotToken, exists := os.LookupEnv("TELEGRAM_BOT_TOKEN")
+
+  if exists {
+    fmt.Println("token exists")
+  }
+
+  bot, err := tgbotapi.NewBotAPI(telegramBotToken)
   if err != nil {
     log.Panic(err)
   }
