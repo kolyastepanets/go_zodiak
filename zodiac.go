@@ -10,6 +10,7 @@ import (
   "math/rand"
   "github.com/joho/godotenv"
   "os"
+  "net/http"
 )
 
 var zodiacKeyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -73,6 +74,10 @@ func init() {
   }
 }
 
+func MainHandler(resp http.ResponseWriter, _ *http.Request) {
+  resp.Write([]byte("Hi there!"))
+}
+
 func FindSentenceForZodiac(callbackData string) string {
   zodiacSigns, err := ioutil.ReadFile("zodiac_signs.json")
   if err != nil {
@@ -122,6 +127,9 @@ func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
 }
 
 func main() {
+  http.HandleFunc("/", MainHandler)
+  go http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+
   telegramBotToken, exists := os.LookupEnv("TELEGRAM_BOT_TOKEN")
 
   if exists {
@@ -140,7 +148,7 @@ func main() {
   u := tgbotapi.NewUpdate(0)
   u.Timeout = 60
 
-  updates, err := bot.GetUpdatesChan(u)
+  updates := bot.ListenForWebhook("/" + telegramBotToken)
 
   for update := range updates {
     if update.CallbackQuery != nil {
