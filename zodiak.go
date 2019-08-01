@@ -47,24 +47,54 @@ type ZodiakSigns struct {
   Capricorn []string `json:"capricorn"`
 }
 
+type RussianZodiaks struct {
+  Aquarius string `json:"aquarius"`
+  Pisces string `json:"pisces"`
+  Aries string `json:"aries"`
+  Taurus string `json:"taurus"`
+  Gemini string `json:"gemini"`
+  Cancer string `json:"cancer"`
+  Leo string `json:"leo"`
+  Virgo string `json:"virgo"`
+  Libra string `json:"libra"`
+  Scorpio string `json:"scorpio"`
+  Saggitarius string `json:"saggitarius"`
+  Capricorn string `json:"capricorn"`
+}
+
 func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
 
-  data, err := ioutil.ReadFile("zodiak_signs.json")
+  zodiakSigns, err := ioutil.ReadFile("zodiak_signs.json")
   if err != nil {
     fmt.Print(err)
   }
 
-  var obj ZodiakSigns
+  var ZodiakSignsObj ZodiakSigns
 
-  err = json.Unmarshal([]byte(data), &obj)
+  err = json.Unmarshal([]byte(zodiakSigns), &ZodiakSignsObj)
   if err != nil {
     fmt.Println("error:", err)
   }
 
-  reflectZodiakSigns := reflect.ValueOf(obj)
+  reflectZodiakSigns := reflect.ValueOf(ZodiakSignsObj)
   currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callback.Data)
 
-  var sentence = callback.Data + ": " + currentZodiakSign.Index(0).Interface().(string)
+  russianZodiaks, err := ioutil.ReadFile("russian_zodiak.json")
+  if err != nil {
+    fmt.Print(err)
+  }
+
+  var RussianZodiaksObj RussianZodiaks
+
+  err = json.Unmarshal([]byte(russianZodiaks), &RussianZodiaksObj)
+  if err != nil {
+    fmt.Println("error:", err)
+  }
+
+  reflectRussianZodiakSigns := reflect.ValueOf(RussianZodiaksObj)
+  currentRussianZodiakSign := reflect.Indirect(reflectRussianZodiakSigns).FieldByName(callback.Data)
+
+  var sentence = currentRussianZodiakSign.Interface().(string) + ": " + currentZodiakSign.Index(0).Interface().(string)
 
   msg := tgbotapi.NewMessage(callback.Message.Chat.ID, callback.Message.Text)
   msg.Text = sentence
