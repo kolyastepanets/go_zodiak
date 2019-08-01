@@ -7,6 +7,7 @@ import (
   "io/ioutil"
   "encoding/json"
   "reflect"
+  "math/rand"
 )
 
 var zodiakKeyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -62,8 +63,7 @@ type RussianZodiaks struct {
   Capricorn string `json:"capricorn"`
 }
 
-func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
-
+func FindSentenceForZodiak(callbackData string) string {
   zodiakSigns, err := ioutil.ReadFile("zodiak_signs.json")
   if err != nil {
     fmt.Print(err)
@@ -77,8 +77,13 @@ func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
   }
 
   reflectZodiakSigns := reflect.ValueOf(ZodiakSignsObj)
-  currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callback.Data)
+  currentZodiakSign := reflect.Indirect(reflectZodiakSigns).FieldByName(callbackData)
 
+  var sentence = currentZodiakSign.Index(rand.Intn((currentZodiakSign.Len() - 1) - 0)).Interface().(string)
+  return sentence
+}
+
+func FindRussianNameForZodiak(callbackData string) string {
   russianZodiaks, err := ioutil.ReadFile("russian_zodiak.json")
   if err != nil {
     fmt.Print(err)
@@ -92,9 +97,13 @@ func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
   }
 
   reflectRussianZodiakSigns := reflect.ValueOf(RussianZodiaksObj)
-  currentRussianZodiakSign := reflect.Indirect(reflectRussianZodiakSigns).FieldByName(callback.Data)
+  currentRussianZodiakSign := reflect.Indirect(reflectRussianZodiakSigns).FieldByName(callbackData)
 
-  var sentence = currentRussianZodiakSign.Interface().(string) + ": " + currentZodiakSign.Index(0).Interface().(string)
+  return currentRussianZodiakSign.Interface().(string)
+}
+
+func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
+  var sentence = FindRussianNameForZodiak(callback.Data) + ": " + FindSentenceForZodiak(callback.Data)
 
   msg := tgbotapi.NewMessage(callback.Message.Chat.ID, callback.Message.Text)
   msg.Text = sentence
