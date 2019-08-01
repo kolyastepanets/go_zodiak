@@ -93,11 +93,13 @@ func main() {
     } else if update.Message.IsCommand() {
       msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
       switch update.Message.Command() {
+      case "choose":
+        msg.Text = "Выбери знак зодиака"
+        msg.ReplyMarkup = zodiakKeyboard
       case "help":
         msg.Text = "кликни /start"
       case "start":
-        msg.Text = "Выбери знак зодиака"
-        msg.ReplyMarkup = zodiakKeyboard
+        msg.Text = "Очень точное описание знаков зодиака, (осторожно мат), кликни /choose"
       default:
         msg.Text = "Нет такой команды"
       }
