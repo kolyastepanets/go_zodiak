@@ -11,6 +11,7 @@ import (
   "github.com/joho/godotenv"
   "os"
   "net/http"
+  "strings"
 )
 
 var zodiacKeyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -94,7 +95,7 @@ func FindSentenceForZodiac(callbackData string) string {
   reflectZodiacSigns := reflect.ValueOf(ZodiacSignsObj)
   currentZodiakSign := reflect.Indirect(reflectZodiacSigns).FieldByName(callbackData)
 
-  var sentence = currentZodiakSign.Index(rand.Intn((currentZodiakSign.Len() - 1) - 0)).Interface().(string)
+  var sentence = currentZodiakSign.Index(RandomNumber(currentZodiakSign.Len())).Interface().(string)
   return sentence
 }
 
@@ -117,8 +118,38 @@ func FindRussianNameForZodiak(callbackData string) string {
   return currentRussianZodiacSign.Interface().(string)
 }
 
+func RandomNumber(max int) int {
+  return rand.Intn((max - 1))
+}
+
+func GenerateHoroscope() string {
+  horoscope, err := ioutil.ReadFile("horoscope_generator.json")
+  if err != nil {
+    fmt.Print(err)
+  }
+
+  var results [][]interface{}
+
+  err = json.Unmarshal([]byte(horoscope), &results)
+  if err != nil {
+    fmt.Println("error:", err)
+  }
+  var sentence []string
+
+  for key, result := range results {
+    if str, ok := result[RandomNumber(len(result))].(string); ok {
+      sentence = append(sentence, str)
+    }
+    fmt.Println("Reading Value for Key :", key)
+  }
+
+  result := strings.Join(sentence, "")
+  return result
+}
+
 func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
-  var sentence = FindRussianNameForZodiak(callback.Data) + ": " + FindSentenceForZodiac(callback.Data)
+  var horoscope = "\nГороскоп на сегодня, кликни /horoscope"
+  var sentence = FindRussianNameForZodiak(callback.Data) + ": " + FindSentenceForZodiac(callback.Data) + horoscope
 
   msg := tgbotapi.NewMessage(callback.Message.Chat.ID, callback.Message.Text)
   msg.Text = sentence
@@ -156,13 +187,15 @@ func main() {
     } else if update.Message.IsCommand() {
       msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
       switch update.Message.Command() {
-      case "choose":
+      case "zodiac":
         msg.Text = "Выбери знак зодиака"
         msg.ReplyMarkup = zodiacKeyboard
       case "help":
         msg.Text = "кликни /start"
+      case "horoscope":
+        msg.Text = GenerateHoroscope()
       case "start":
-        msg.Text = "Очень точное описание знаков зодиака, (осторожно мат), кликни /choose"
+        msg.Text = "Очень точное описание знаков зодиака, (осторожно мат), кликни /zodiac"
       default:
         msg.Text = "Нет такой команды"
       }
