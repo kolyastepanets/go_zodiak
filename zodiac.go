@@ -12,8 +12,17 @@ import (
   "os"
   "net/http"
   "strings"
+  "github.com/go-redis/redis"
+  "time"
 )
 
+var (
+  clientRedis *redis.Client
+  err error
+)
+
+const objectPrefix string = "user_id_"
+const maxQuantityToGenerateRudePart1 int = 5
 var zodiacKeyboard = tgbotapi.NewInlineKeyboardMarkup(
   tgbotapi.NewInlineKeyboardRow(
     tgbotapi.NewInlineKeyboardButtonData("Овен", "Aries"),
@@ -37,46 +46,69 @@ var zodiacKeyboard = tgbotapi.NewInlineKeyboardMarkup(
   ),
 )
 
-type ZodiacSigns struct {
-  Aquarius []string `json:"aquarius"`
-  Pisces []string `json:"pisces"`
-  Aries []string `json:"aries"`
-  Taurus []string `json:"taurus"`
-  Gemini []string `json:"gemini"`
-  Cancer []string `json:"cancer"`
-  Leo []string `json:"leo"`
-  Virgo []string `json:"virgo"`
-  Libra []string `json:"libra"`
-  Scorpio []string `json:"scorpio"`
-  Saggitarius []string `json:"saggitarius"`
-  Capricorn []string `json:"capricorn"`
-}
-
-type RussianZodiacs struct {
-  Aquarius string `json:"aquarius"`
-  Pisces string `json:"pisces"`
-  Aries string `json:"aries"`
-  Taurus string `json:"taurus"`
-  Gemini string `json:"gemini"`
-  Cancer string `json:"cancer"`
-  Leo string `json:"leo"`
-  Virgo string `json:"virgo"`
-  Libra string `json:"libra"`
-  Scorpio string `json:"scorpio"`
-  Saggitarius string `json:"saggitarius"`
-  Capricorn string `json:"capricorn"`
-}
-
 // init is invoked before main()
 func init() {
   // loads values from .env into the system
   if err := godotenv.Load(); err != nil {
     log.Print("No .env file found")
   }
+
+  redisAddr, _ := os.LookupEnv("REDIS_ADDR")
+  redisPwd, _ := os.LookupEnv("REDIS_PWD")
+
+  clientRedis = redis.NewClient(&redis.Options{
+    Addr:     redisAddr,
+    Password: redisPwd, // no password set
+    DB:       0,  // use default DB
+  })
+
+  pong, err := clientRedis.Ping().Result()
+  fmt.Println(pong, err)
 }
 
 func MainHandler(resp http.ResponseWriter, _ *http.Request) {
   resp.Write([]byte("Hi there!"))
+}
+
+func CanGenerateHoroscope(update tgbotapi.Update) bool {
+  UserObj := GetUser(update)
+
+  var isDatesEqual bool
+  isDatesEqual = DateEqual(UserObj.DateRequestHoroscope, time.Now())
+  return !isDatesEqual
+}
+
+func GenerateAbuseMessage(update tgbotapi.Update) string {
+  UserObj := GetUser(update)
+
+  rude_reply, err := ioutil.ReadFile("rude_reply.json")
+  if err != nil {
+    fmt.Print(err)
+  }
+
+  var RudeReplyObj RudeReply
+
+  err = json.Unmarshal([]byte(rude_reply), &RudeReplyObj)
+  if err != nil {
+    fmt.Println("error:", err)
+  }
+
+  var sentence string
+
+  if UserObj.TimesHoroscopeWasRequested >= maxQuantityToGenerateRudePart1 {
+    var index = UserObj.TimesHoroscopeWasRequested - maxQuantityToGenerateRudePart1
+    if index >= len(RudeReplyObj.Part2) {
+      index = RandomNumber(len(RudeReplyObj.Part2) - 1)
+    }
+    sentence = RudeReplyObj.Part2[index]
+  } else {
+    sentence = RudeReplyObj.Part1[UserObj.TimesHoroscopeWasRequested]
+  }
+
+  UserObj.TimesHoroscopeWasRequested = UserObj.TimesHoroscopeWasRequested + 1
+  SaveUser(UserObj)
+
+  return sentence
 }
 
 func FindSentenceForZodiac(callbackData string) string {
@@ -122,7 +154,14 @@ func RandomNumber(max int) int {
   return rand.Intn((max - 1))
 }
 
-func GenerateHoroscope() string {
+func DateEqual(date1, date2 time.Time) bool {
+  y1, m1, d1 := date1.Date()
+  y2, m2, d2 := date2.Date()
+
+  return y1 == y2 && m1 == m2 && d1 == d2
+}
+
+func GenerateHoroscope(update tgbotapi.Update) string {
   horoscope, err := ioutil.ReadFile("horoscope_generator.json")
   if err != nil {
     fmt.Print(err)
@@ -136,15 +175,18 @@ func GenerateHoroscope() string {
   }
   var sentence []string
 
-  for key, result := range results {
+  for _, result := range results {
     if str, ok := result[RandomNumber(len(result))].(string); ok {
       sentence = append(sentence, str)
     }
-    fmt.Println("Reading Value for Key :", key)
   }
 
-  result := strings.Join(sentence, "")
-  return result
+  UserObj := GetUser(update)
+  UserObj.TimesHoroscopeWasRequested = 0
+  UserObj.DateRequestHoroscope = time.Now()
+  SaveUser(UserObj)
+
+  return strings.Join(sentence, "")
 }
 
 func CallbackHandler(callback tgbotapi.CallbackQuery, bot *tgbotapi.BotAPI) {
@@ -193,7 +235,11 @@ func main() {
       case "help":
         msg.Text = "кликни /start"
       case "horoscope":
-        msg.Text = GenerateHoroscope()
+        if CanGenerateHoroscope(update) {
+          msg.Text = GenerateHoroscope(update)
+        } else {
+          msg.Text = GenerateAbuseMessage(update)
+        }
       case "start":
         msg.Text = "Очень точное описание знаков зодиака, (осторожно мат), кликни /zodiac"
       default:
